@@ -261,7 +261,7 @@ def pick_sequence(obs: Observation, after_flip: bool = False) -> list[Task]:
 
 
 def flip_sequence() -> list[Task]:
-    """박스를 뒤집기 장치에 걸쳐 놓는다. 장치의 경사 때문에 박스가 넘어가며 뒤집힌다."""
+    """박스를 뒤집기 장치에 비스듬히 걸쳐 놓고 손을 뺀다. 박스가 넘어가며 엎어진다."""
     return [OrientToHome(), MoveToFlipStation(), OpenGripper(), Wait(0.25), ReleaseFlipStationBin(), OrientToHome()]
 
 

@@ -17,7 +17,7 @@ _EXTENSIONS = [
 ]
 
 
-def start_app():
+def start_app(extra_config: dict | None = None):
     """인자를 읽고 SimulationApp을 띄운다. (app, args)를 돌려준다."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--headless", action="store_true", help="창 없이 실행")
@@ -29,6 +29,7 @@ def start_app():
     if args.test:
         # 화면을 그리지 않아 시험이 빨리 끝난다.
         config.update({"renderer": "MinimalRendering", "disable_viewport_updates": True})
+    config.update(extra_config or {})
     app = SimulationApp(config)
 
     import omni.kit.app

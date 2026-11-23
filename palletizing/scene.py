@@ -72,7 +72,7 @@ def build_scene(env_path: str = ENV_PATH) -> dict[str, str]:
     ground = GroundPlane(f"{env_path}/ground", sizes=50.0, translations=[(0.0, 0.0, -1.1819)], templates=None)
     ground.set_visibilities(False)
 
-    # 로봇과 하우징은 서로 충돌 계산에서 뺀다. 로봇이 하우징 안쪽에 서 있어서 그대로 두면 끼인다.
+    # 로봇과 하우징은 서로 충돌 계산에서 뺀다. 로봇이 하우징 안쪽에 서 있어 팔이 하우징에 닿을 수 있다.
     robot_group = UsdPhysics.CollisionGroup.Define(stage, f"{env_path}/RobotGroup")
     robot_group.GetCollidersCollectionAPI().CreateIncludesRel().AddTarget(Sdf.Path(f"{env_path}/ur10"))
     housing_group = UsdPhysics.CollisionGroup.Define(stage, f"{env_path}/HousingGroup")
@@ -91,7 +91,7 @@ def _keep_rollers_kinematic(stage: Usd.Stage, rollers_path: str) -> None:
     """롤러를 kinematic(물리에 밀리지 않는 강체)으로 미리 적어 둔다.
 
     컨베이어는 "움직이지 않지만 표면 속도를 가진 강체"여야 한다. reference가 열리기 전에
-    이 값을 적어 두지 않으면 롤러가 일반 강체로 읽혀 아래로 떨어진다.
+    이 값을 적어 두지 않으면 롤러가 중력을 받는 일반 강체로 읽힐 수 있다.
     """
     layer = stage.GetEditTarget().GetLayer()
     spec = Sdf.CreatePrimInLayer(layer, stage.GetEditTarget().MapToSpecPath(Sdf.Path(rollers_path)))

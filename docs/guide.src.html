@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UR10 팔레타이징 직접 구현 가이드 — Isaac Sim 6.2</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{
+  --bg:#0b0f17; --ink:#e8edf6; --ink-2:#b4bfd3; --ink-3:#8593ab;
+  --glass:rgba(255,255,255,.055); --glass-2:rgba(255,255,255,.09); --line:rgba(255,255,255,.14);
+  --accent:#7cc4ff; --accent-2:#9ef0c5; --warn:#ffcf7a; --bad:#ff9a9a;
+  --code-bg:rgba(6,9,15,.72);
+  --mono:"JetBrains Mono","D2Coding","Cascadia Code",Consolas,"Malgun Gothic",monospace;
+  --sans:"Pretendard Variable",Pretendard,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:24px}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.75;word-break:keep-all;overflow-wrap:anywhere}
+/* 유리 뒤에서 흐려질 배경 빛 */
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:
+  radial-gradient(620px 460px at 12% 8%,rgba(70,140,255,.38),transparent 70%),
+  radial-gradient(560px 480px at 88% 22%,rgba(60,220,170,.24),transparent 70%),
+  radial-gradient(700px 520px at 60% 96%,rgba(170,110,255,.26),transparent 70%)}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible,pre:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.glass{background:var(--glass);border:1px solid var(--line);border-radius:18px;
+  -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 18px 40px rgba(0,0,0,.35)}
+.layout{display:grid;grid-template-columns:268px minmax(0,1fr);gap:28px;max-width:1240px;margin:0 auto;padding:28px 24px 80px}
+nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;padding:18px 14px}
+nav.toc h2{font-size:12px;letter-spacing:.08em;color:var(--ink-3);margin:4px 10px 10px;font-weight:600}
+nav.toc ol{list-style:none;margin:0;padding:0}
+nav.toc a{display:flex;gap:10px;align-items:baseline;padding:7px 10px;border-radius:10px;color:var(--ink-2);text-decoration:none;font-size:14.5px;line-height:1.4}
+nav.toc a:hover{background:var(--glass-2);color:var(--ink)}
+nav.toc a.active{background:rgba(124,196,255,.16);color:#fff}
+nav.toc .num{font-family:var(--mono);font-size:12px;color:var(--ink-3);min-width:18px}
+nav.toc a.done .num{color:var(--accent-2)}
+nav.toc a.done .num::after{content:" ✓"}
+.progress{margin:14px 10px 4px;font-size:13px;color:var(--ink-3)}
+.bar{height:6px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .25s}
+main{min-width:0}
+header.hero{padding:34px 34px 30px;margin-bottom:28px}
+.eyebrow{font-size:13px;letter-spacing:.06em;color:var(--accent);font-weight:600}
+h1{font-size:clamp(28px,4vw,40px);line-height:1.25;margin:8px 0 14px;letter-spacing:-.02em}
+.lead{font-size:17.5px;color:var(--ink-2);max-width:62ch;margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.chip{font-size:13px;padding:5px 12px;border-radius:99px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--ink-2)}
+.chip b{color:var(--ink);font-weight:600}
+section{padding:30px 34px;margin-bottom:24px}
+section>h2{font-size:25px;line-height:1.3;margin:0 0 6px;letter-spacing:-.01em}
+section>h2 .step{display:inline-block;font-family:var(--mono);font-size:13px;color:var(--accent);border:1px solid rgba(124,196,255,.4);border-radius:8px;padding:2px 9px;margin-right:10px;vertical-align:middle}
+h3{font-size:18px;margin:30px 0 8px}
+p{margin:10px 0}
+.goal{color:var(--ink-2);font-size:16.5px;margin:0 0 6px}
+ul,ol{padding-left:22px}
+li{margin:5px 0}
+code{font-family:var(--mono);font-size:.88em;background:rgba(255,255,255,.09);border-radius:6px;padding:.1em .4em}
+kbd{font-family:var(--mono);font-size:.85em;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:.05em .4em;background:rgba(255,255,255,.06)}
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:12px 0}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--ink-3);font-weight:600;font-size:13px}
+.tablewrap{overflow-x:auto}
+figure{margin:16px 0}
+figure.code{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--code-bg)}
+figure.code figcaption{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;border-bottom:1px solid var(--line);font-size:13px;background:rgba(255,255,255,.04)}
+figure.code .file{font-family:var(--mono);color:var(--ink)}
+figure.code .meta{color:var(--ink-3);margin-left:auto}
+button.copy{font:inherit;font-size:12.5px;color:var(--ink);background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:8px;padding:3px 11px;cursor:pointer}
+button.copy:hover{background:rgba(255,255,255,.16)}
+button.copy.ok{color:var(--accent-2);border-color:rgba(158,240,197,.5)}
+pre{margin:0;padding:14px 16px;overflow:auto;font-family:var(--mono);font-size:13.2px;line-height:1.62;color:#dbe4f3;tab-size:4;max-height:640px}
+pre code{background:none;padding:0;font-size:inherit}
+pre.out{background:var(--code-bg);border:1px solid var(--line);border-radius:14px;color:#c9d6ea}
+pre.cmd{background:var(--code-bg);border:1px solid rgba(124,196,255,.35);border-radius:14px;color:#eaf4ff}
+pre.cmd::before{content:"PS> ";color:var(--ink-3)}
+.c{color:#8fa3bf;font-style:italic}.s{color:#b9e3a0}.k{color:#ff9fc6}.n{color:#ffcf7a}.f{color:#7cc4ff}.b{color:#c4b0ff}
+details{border:1px solid var(--line);border-radius:14px;margin:14px 0;background:rgba(255,255,255,.03)}
+details>summary{cursor:pointer;padding:11px 16px;font-weight:600;font-size:15px;list-style:none}
+details>summary::before{content:"▸ ";color:var(--accent)}
+details[open]>summary::before{content:"▾ "}
+details>summary::-webkit-details-marker{display:none}
+details>*:not(summary){margin-left:14px;margin-right:14px}
+details>figure:last-child,details>p:last-child{margin-bottom:14px}
+.note{border-left:3px solid var(--accent);background:rgba(124,196,255,.08);border-radius:0 12px 12px 0;padding:10px 16px;margin:14px 0}
+.note.warn{border-color:var(--warn);background:rgba(255,207,122,.09)}
+.note b:first-child{color:#fff}
+.check{display:flex;gap:12px;align-items:center;margin-top:24px;padding:14px 16px;border-radius:14px;border:1px dashed rgba(158,240,197,.5);background:rgba(158,240,197,.06);cursor:pointer}
+.check input{width:20px;height:20px;accent-color:#6fe0ae;flex:none}
+.check span{font-weight:600}
+.shot{border-radius:14px;border:1px solid var(--line);width:100%;height:auto;display:block}
+figure.img figcaption{font-size:13.5px;color:var(--ink-3);margin-top:8px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.pipe{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin:14px 0}
+.pipe div{flex:1 1 150px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:rgba(255,255,255,.05);font-size:14px}
+.pipe div b{display:block;font-family:var(--mono);font-size:13px;color:var(--accent)}
+svg text{font-family:var(--sans)}
+svg .mono{font-family:var(--mono)}
+footer{color:var(--ink-3);font-size:13.5px;padding:0 10px}
+@media (max-width:900px){
+  .layout{grid-template-columns:minmax(0,1fr);padding:16px 12px 60px}
+  nav.toc{position:static;max-height:none}
+  section,header.hero{padding:22px 18px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc glass" aria-label="목차">
+  <h2>따라 하는 순서</h2>
+  <ol>
+    <li><a href="#overview"><span class="num">·</span>전체 그림</a></li>
+    <li><a href="#prep" data-step="prep"><span class="num">0</span>준비</a></li>
+    <li><a href="#s1" data-step="s1"><span class="num">1</span>외부 로봇 불러오기</a></li>
+    <li><a href="#s2" data-step="s2"><span class="num">2</span>설비 배치</a></li>
+    <li><a href="#s3" data-step="s3"><span class="num">3</span>컨베이어 구동</a></li>
+    <li><a href="#s4" data-step="s4"><span class="num">4</span>무작위 박스 만들기</a></li>
+    <li><a href="#s5" data-step="s5"><span class="num">5</span>무작위 위치 인식</a></li>
+    <li><a href="#s6" data-step="s6"><span class="num">6</span>붙였다 떨어뜨리기</a></li>
+    <li><a href="#s7" data-step="s7"><span class="num">7</span>로봇 움직이기</a></li>
+    <li><a href="#s8" data-step="s8"><span class="num">8</span>한 번 집어 놓기</a></li>
+    <li><a href="#s9" data-step="s9"><span class="num">9</span>뒤집고 차곡차곡 쌓기</a></li>
+    <li><a href="#custom"><span class="num">·</span>내 것으로 바꾸기</a></li>
+    <li><a href="#trouble"><span class="num">·</span>막혔을 때</a></li>
+    <li><a href="#map"><span class="num">·</span>공식 예제 대응표</a></li>
+  </ol>
+  <div class="progress"><span id="progress-text">진행 0 / 10</span><div class="bar"><i id="progress-bar"></i></div></div>
+</nav>
+
+<main>
+
+<header class="hero glass">
+  <div class="eyebrow">ISAAC SIM 6.2 · 따라 하기 가이드</div>
+  <h1>UR10 팔레타이징을<br>빈 스테이지에서 직접 만들기</h1>
+  <p class="lead">Robotics Examples의 <b>UR10 Palletizing</b>이 하는 일을 아홉 단계로 나눠 직접 구현한다. 외부 로봇을 불러오고, 설비를 놓고, 박스를 무작위로 떨어뜨리고, 위치를 읽고, 흡착해서 뒤집고, 팔레트에 쌓는다.</p>
+  <div class="chips">
+    <span class="chip"><b>대상</b> Isaac Sim 6.2.0 · Windows</span>
+    <span class="chip"><b>언어</b> Python (standalone 스크립트)</span>
+    <span class="chip"><b>코드</b> 모듈 9개 · 단계 스크립트 9개</span>
+    <span class="chip"><b>검증</b> 모든 단계 실행 확인</span>
+  </div>
+</header>
+
+<!-- ───────────────────────── 전체 그림 ───────────────────────── -->
+<section class="glass" id="overview">
+  <h2>전체 그림</h2>
+  <p class="goal">무엇을 만들고, 조각들이 어떻게 맞물리는지 먼저 본다.</p>
+
+  <figure class="img"><img class="shot" src="img/stacked.jpg" alt="완성된 셀. 컨베이어, UR10, 뒤집기 장치, 박스가 쌓인 팔레트" width="1280" height="720" loading="lazy">
+    <figcaption>이 가이드의 9단계 코드를 실행한 화면. 왼쪽 컨베이어로 박스가 오고, 로봇이 오른쪽 팔레트에 쌓는다.</figcaption></figure>
+
+  <h3>셀 배치 (위에서 본 모습)</h3>
+  <p>로봇 베이스가 원점이다. 단위는 m. 박스는 <code>+Y</code> 쪽 입구에서 떨어져 <code>-Y</code> 방향으로 흘러온다. 바닥은 <code>z = -1.18</code>, 로봇은 받침대 위 <code>z = 0</code>에 서 있다.</p>
+  <figure>
+  <svg viewBox="0 30 640 370" role="img" aria-label="셀 평면도. 가로가 Y축, 세로가 X축" style="width:100%;height:auto">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b4bfd3"/></marker></defs>
+    <rect x="39.5" y="68" width="247.5" height="145.5" rx="6" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.25)" stroke-dasharray="4 4"/>
+    <text x="48" y="86" font-size="12" fill="#8593ab">하우징 (로봇을 둘러싼 틀)</text>
+    <rect x="291.5" y="45.5" width="300" height="172.5" rx="6" fill="rgba(124,196,255,.12)" stroke="#7cc4ff"/>
+    <text x="470" y="64" font-size="13" fill="#7cc4ff">컨베이어</text>
+    <path d="M560 200 L330 200" stroke="#7cc4ff" stroke-width="2" marker-end="url(#ah)"/>
+    <text x="400" y="194" font-size="12" fill="#7cc4ff">0.30 m/s</text>
+    <rect x="230" y="80" width="105" height="120" fill="rgba(255,207,122,.13)" stroke="#ffcf7a" stroke-dasharray="5 4"/>
+    <text x="236" y="96" font-size="12" fill="#ffcf7a">작업 구역</text>
+    <line x1="455" y1="117.5" x2="455" y2="162.5" stroke="#9ef0c5" stroke-width="3"/>
+    <circle cx="455" cy="140" r="5" fill="#9ef0c5"/>
+    <text x="464" y="136" font-size="12" fill="#9ef0c5">박스 생성 y=1.5</text>
+    <text x="464" y="152" font-size="11" fill="#8593ab">x는 ±0.15 무작위</text>
+    <rect x="285.5" y="221" width="97.5" height="112.5" rx="6" fill="rgba(196,176,255,.14)" stroke="#c4b0ff"/>
+    <text x="292" y="350" font-size="13" fill="#c4b0ff">뒤집기 장치</text>
+    <circle cx="341" cy="258.5" r="4" fill="#c4b0ff"/>
+    <rect x="90.5" y="212" width="181.5" height="120" rx="6" fill="rgba(158,240,197,.1)" stroke="#9ef0c5"/>
+    <text x="96" y="350" font-size="13" fill="#9ef0c5">팔레트 (쌓는 순서 1→9)</text>
+    <g font-size="11" fill="#0b0f17" text-anchor="middle" class="mono">
+      <circle cx="137" cy="297.5" r="9" fill="#9ef0c5"/><text x="137" y="301.5">1</text>
+      <circle cx="137" cy="266" r="9" fill="#9ef0c5"/><text x="137" y="270">2</text>
+      <circle cx="137" cy="234.5" r="9" fill="#9ef0c5"/><text x="137" y="238.5">3</text>
+      <circle cx="183.5" cy="297.5" r="9" fill="#9ef0c5"/><text x="183.5" y="301.5">4</text>
+      <circle cx="183.5" cy="266" r="9" fill="#9ef0c5"/><text x="183.5" y="270">5</text>
+      <circle cx="183.5" cy="234.5" r="9" fill="#9ef0c5"/><text x="183.5" y="238.5">6</text>
+      <circle cx="230" cy="297.5" r="9" fill="#9ef0c5"/><text x="230" y="301.5">7</text>
+      <circle cx="230" cy="266" r="9" fill="#9ef0c5"/><text x="230" y="270">8</text>
+      <circle cx="230" cy="234.5" r="9" fill="#9ef0c5"/><text x="230" y="238.5">9</text>
+    </g>
+    <path d="M230 140 L300 140" stroke="#b4bfd3" stroke-width="1.5" marker-end="url(#ah)"/><text x="304" y="134" font-size="12" fill="#b4bfd3">+Y</text>
+    <path d="M230 140 L230 196" stroke="#b4bfd3" stroke-width="1.5" marker-end="url(#ah)"/><text x="210" y="196" font-size="12" fill="#b4bfd3">+X</text>
+    <circle cx="230" cy="140" r="19" fill="#e8edf6"/><text x="230" y="144.5" font-size="11" text-anchor="middle" fill="#0b0f17" font-weight="700">UR10</text>
+    <path d="M20 380 L170 380" stroke="#8593ab" stroke-width="2"/><text x="72" y="374" font-size="11" fill="#8593ab">1 m</text>
+  </svg>
+  </figure>
+
+  <h3>매 물리 스텝(1/60초)에 일어나는 일</h3>
+  <div class="pipe">
+    <div><b>spawner.step()</b>구역이 비면 박스를 무작위 자세로 하나 만든다</div>
+    <div><b>cell.read()</b>박스·로봇·그리퍼 상태를 읽어 관측 하나로 묶는다</div>
+    <div><b>controller.step()</b>상태기계가 할 일을 정하고 명령을 낸다</div>
+    <div><b>cell.apply()</b>명령을 로봇·그리퍼·컨베이어에 실행한다</div>
+  </div>
+  <p>완성본의 주 루프는 이 네 줄이 전부다. 1~8단계는 이 네 줄에 들어갈 부품을 하나씩 만드는 과정이다.</p>
+
+  <h3>만들 파일</h3>
+  <div class="tablewrap"><table>
+    <tr><th>단계</th><th>새로 쓰는 파일</th><th>실행해서 확인하는 것</th></tr>
+    <tr><td>0</td><td><code>palletizing/__init__.py</code>, <code>palletizing/boot.py</code></td><td>폴더와 실행 방법</td></tr>
+    <tr><td>1</td><td><code>step01_load_robot.py</code></td><td>UR10이 홈 자세로 선다</td></tr>
+    <tr><td>2</td><td><code>palletizing/scene.py</code> (배치), <code>step02_build_scene.py</code></td><td>설비 7개가 제자리에 놓인다</td></tr>
+    <tr><td>3</td><td><code>scene.py</code>에 컨베이어 함수, <code>step03_conveyor.py</code></td><td>박스가 1초에 0.30 m 실려 간다</td></tr>
+    <tr><td>4</td><td><code>palletizing/common.py</code>, <code>spawner.py</code>, <code>step04_spawn_bins.py</code></td><td>박스가 무작위로 계속 나온다</td></tr>
+    <tr><td>5</td><td><code>palletizing/perception.py</code>, <code>step05_perception.py</code></td><td>집을 점과 뒤집기 여부를 맞힌다</td></tr>
+    <tr><td>6</td><td><code>palletizing/gripper.py</code>, <code>step06_gripper.py</code></td><td>박스가 붙고, 따라오고, 떨어진다</td></tr>
+    <tr><td>7</td><td><code>palletizing/motion.py</code>, <code>step07_motion.py</code></td><td>컵 끝이 네 지점에 도착한다</td></tr>
+    <tr><td>8</td><td><code>palletizing/tasks.py</code>, <code>cell.py</code>, <code>step08_pick_place.py</code></td><td>박스 하나를 팔레트 1번 자리에 놓는다</td></tr>
+    <tr><td>9</td><td><code>palletizing/fsm.py</code>, <code>step09_palletizing.py</code></td><td>뒤집기를 포함해 9개를 쌓는다</td></tr>
+  </table></div>
+</section>
+
+<!-- ───────────────────────── 0. 준비 ───────────────────────── -->
+<section class="glass" id="prep">
+  <h2><span class="step">0</span>준비</h2>
+  <p class="goal">작업 폴더를 만들고, 스크립트를 실행하는 방법과 공통 시작 코드를 갖춘다.</p>
+
+  <h3>필요한 것</h3>
+  <ul>
+    <li><b>Isaac Sim 6.2.0</b>. 이 가이드는 <code>C:\isaacsim-6.2</code>에 풀어 놓은 설치본으로 확인했다. 다른 위치면 아래 명령의 경로만 바꾼다.</li>
+    <li><b>인터넷 연결</b>. 로봇·설비 USD를 NVIDIA 에셋 서버에서 내려받는다. 처음 실행은 내려받기와 셰이더 준비 때문에 오래 걸릴 수 있다.</li>
+    <li>편집기 하나(VS Code 등)와 PowerShell.</li>
+  </ul>
+
+  <h3>폴더 만들기</h3>
+  <p>아무 곳에나 작업 폴더를 만들고 그 안에 <code>palletizing</code> 폴더를 만든다. 끝까지 가면 아래 모양이 된다.</p>
+<pre class="out">IsaacSimUR10Palletizing/
+├─ palletizing/            ← 부품 모듈 (단계마다 하나씩 늘어난다)
+│  ├─ __init__.py
+│  ├─ boot.py              0단계
+│  ├─ scene.py             2·3단계
+│  ├─ common.py            4단계
+│  ├─ spawner.py           4단계
+│  ├─ perception.py        5단계
+│  ├─ gripper.py           6단계
+│  ├─ motion.py            7단계
+│  ├─ tasks.py             8단계
+│  ├─ cell.py              8단계
+│  └─ fsm.py               9단계
+├─ step01_load_robot.py    ← 단계마다 실행해 보는 스크립트
+├─ …
+└─ step09_palletizing.py</pre>
+
+  <h3>실행 방법</h3>
+  <p>Isaac Sim 모듈은 Isaac Sim에 들어 있는 Python으로만 불러올 수 있다. 그래서 일반 <code>python</code>이 아니라 설치 폴더의 <code>python.bat</code>으로 실행한다. 가상환경을 따로 만들지 않는다.</p>
+<pre class="cmd">cd E:\Github\IsaacSimUR10Palletizing
+C:\isaacsim-6.2\python.bat step01_load_robot.py</pre>
+  <div class="tablewrap"><table>
+    <tr><th>옵션</th><th>뜻</th></tr>
+    <tr><td><code>(없음)</code></td><td>창을 띄우고 계속 돈다. 창을 닫으면 끝난다.</td></tr>
+    <tr><td><code>--test --headless</code></td><td>창 없이 돌리고 스스로 확인한 뒤 <code>[stepNN] PASS</code> 또는 <code>FAIL</code>을 찍고 끝난다. 30초~2분.</td></tr>
+    <tr><td><code>--seed 3</code></td><td>무작위 박스 순서를 고정한다. 같은 숫자면 같은 순서로 나온다.</td></tr>
+  </table></div>
+  <p>각 단계는 먼저 창을 띄워 눈으로 보고, 그다음 <code>--test --headless</code>로 PASS를 확인하는 순서를 권한다.</p>
+
+  <h3>공통 시작 코드</h3>
+  <p><code>palletizing/__init__.py</code>는 주석 한 줄만 있는 빈 파일이다. 이 파일이 있어야 <code>from palletizing.scene import …</code>처럼 불러올 수 있다.</p>
+  {{code:palletizing/__init__.py}}
+  <p><code>palletizing/boot.py</code>는 2단계부터 모든 스크립트의 첫 줄에서 쓴다. 하는 일은 세 가지다. 앱을 띄우고, 필요한 확장을 켜고, 물리를 60 Hz로 맞춘다.</p>
+  {{code:palletizing/boot.py}}
+  <div class="note"><b>가장 흔한 실수.</b> <code>SimulationApp(...)</code>을 만들기 전에 <code>isaacsim.core…</code>나 <code>pxr</code>을 import하면 <code>ModuleNotFoundError</code>가 난다. 그래서 모든 스크립트가 <code>start_app()</code>을 먼저 부르고 그 아래에서 나머지를 import한다.</div>
+
+  <label class="check"><input type="checkbox" data-done="prep"><span>폴더와 boot.py를 만들었다</span></label>
+</section>
+
+<!-- ───────────────────────── 1 ───────────────────────── -->
+<section class="glass" id="s1">
+  <h2><span class="step">1</span>외부 로봇 불러오기</h2>
+  <p class="goal">빈 스테이지에 물리·바닥·조명을 넣고, 에셋 서버의 UR10을 불러와 홈 자세로 세운다.</p>
+
+  <h3>알아 둘 것</h3>
+  <ul>
+    <li><b>Reference.</b> 로봇 USD 파일을 복사해 넣는 게 아니라, 스테이지의 한 경로(<code>/World/ur10</code>)에 "이 파일을 여기에 보여 줘"라고 연결한다. 설비와 박스도 전부 같은 방식이다.</li>
+    <li><b>Variant.</b> UR10 USD 하나에 여러 형태가 들어 있다. <code>Gripper</code>는 <code>none</code>, <code>short_suction</code>, <code>long_suction</code> 중 고른다. 여기서는 짧은 흡착 그리퍼를 쓴다.</li>
+    <li><b>Articulation.</b> 관절로 이어진 로봇을 다루는 래퍼다. 관절 이름을 읽고, 관절각을 넣고, 구동기 목표를 준다. 이 UR10은 <code>root_joint</code>로 세계에 고정돼 있어 넘어지지 않는다.</li>
+    <li><b>위치와 목표는 다르다.</b> <code>set_dof_positions</code>는 관절을 순간 이동시키고, <code>set_dof_position_targets</code>는 구동기가 따라갈 목표를 정한다. 둘을 같이 맞추지 않으면 구동기가 로봇을 예전 목표로 다시 끌고 간다.</li>
+  </ul>
+
+  <h3>코드</h3>
+  <p>이 파일만은 <code>boot.py</code>를 쓰지 않고 전부 풀어 썼다. 번호 순서가 곧 Isaac Sim standalone 스크립트의 뼈대다.</p>
+  {{code:step01_load_robot.py}}
+
+  <h3>실행과 기대 결과</h3>
+<pre class="cmd">C:\isaacsim-6.2\python.bat step01_load_robot.py</pre>
+  <p>창에 UR10이 팔을 접은 홈 자세로 서 있으면 된다. <code>--test --headless</code>를 붙이면 아래가 찍힌다.</p>
+<pre class="out">관절 이름: ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint', 'wrist_1_joint', 'wrist_2_joint', 'wrist_3_joint']
+링크 이름: ['base_link', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link', 'ee_link']
+현재 관절각(rad): [-1.57 -1.57 -1.57 -1.57  1.57 -0.  ]
+[step01] PASS</pre>
+  <div class="note"><b>해 볼 것.</b> <code>variants</code>를 <code>[("Gripper", "none")]</code>이나 <code>long_suction</code>으로 바꿔 실행해 본다. 같은 파일에서 끝단 모양이 달라진다.</div>
+
+  <label class="check"><input type="checkbox" data-done="s1"><span>UR10이 홈 자세로 서는 것을 봤다</span></label>
+</section>
+
+<!-- ───────────────────────── 2 ───────────────────────── -->
+<section class="glass" id="s2">
+  <h2><span class="step">2</span>설비 배치</h2>
+  <p class="goal">로봇 주변에 받침대, 하우징, 컨베이어, 뒤집기 장치, 팔레트, 대차를 놓는다.</p>
+
+  <h3>알아 둘 것</h3>
+  <ul>
+    <li><b>자세는 쿼터니언 <code>(w, x, y, z)</code>.</b> <code>(0.7071, 0, 0, -0.7071)</code>은 Z축 둘레 -90도, <code>(0.7071, 0, 0, 0.7071)</code>은 +90도다. 이 두 값만 쓴다.</li>
+    <li><b>충돌 그룹.</b> 로봇은 하우징 안쪽에 서 있어 팔이 하우징에 닿을 수 있다. 공식 예제와 같이 둘을 서로 충돌 계산에서 뺀다.</li>
+    <li><b>보이지 않는 바닥.</b> 창고 배경은 그림일 뿐 물리가 없다. 떨어진 박스를 받칠 물리 바닥을 <code>z = -1.18</code>에 따로 깐다.</li>
+    <li>배치 좌표는 공식 예제의 값이다. 로봇이 닿을 수 있는 범위와 뒤 단계의 목표 좌표가 이 배치에 맞춰져 있으니 처음에는 그대로 쓴다.</li>
+  </ul>
+
+  <h3>코드: <code>palletizing/scene.py</code> (배치 부분)</h3>
+  <p>파일 머리와 상수, 에셋 주소, 붙이기 도우미, 배치 함수를 차례로 쓴다. 컨베이어 관련 함수 세 개(<code>_keep_rollers_kinematic</code>, <code>configure_conveyor</code>, <code>set_conveyor_running</code>)는 3단계에서 설명한다. 미리 같이 써 두어도 된다.</p>
+  {{code:palletizing/scene.py:ENV_PATH}}
+  {{code:palletizing/scene.py:asset_urls}}
+  {{code:palletizing/scene.py:add_usd}}
+  {{code:palletizing/scene.py:build_scene}}
+  <details><summary>scene.py 전체 보기 (import와 3단계 함수 포함)</summary>
+  {{code:palletizing/scene.py}}
+  </details>
+
+  <h3>코드: <code>step02_build_scene.py</code></h3>
+  {{code:step02_build_scene.py}}
+
+  <h3>실행과 기대 결과</h3>
+<pre class="cmd">C:\isaacsim-6.2\python.bat step02_build_scene.py</pre>
+<pre class="out">ur10          x[-0.09,+1.23] y[-0.08,+0.26] z[-0.05,+0.22]
+ur10_mount    x[-0.14,+0.14] y[-0.14,+0.14] z[-0.52,+0.00]
+housing       x[-0.48,+0.49] y[-1.27,+0.38] z[-1.18,+0.04]
+conveyor      x[-0.63,+0.52] y[+0.41,+2.41] z[-1.40,-0.23]
+flip_station  x[+0.54,+1.29] y[+0.37,+1.02] z[-1.11,-0.10]
+pallet        x[+0.48,+1.28] y[-0.93,+0.28] z[-0.81,-0.67]
+dolly         x[+0.46,+1.31] y[-0.96,+0.30] z[-1.18,-0.74]
+[step02] PASS</pre>
+  <p>찍힌 범위가 위 평면도와 맞는지 대조해 본다. (이 시점의 로봇은 아직 팔을 뻗은 0도 자세라 x가 1.23까지 나온다.)</p>
+  <figure class="img"><img class="shot" src="img/scene.jpg" alt="설비가 배치된 셀" width="1280" height="720" loading="lazy">
+    <figcaption>배치가 끝난 셀. 로봇은 홈 자세.</figcaption></figure>
+
+  <label class="check"><input type="checkbox" data-done="s2"><span>설비 7개가 평면도대로 놓였다</span></label>
+</section>
+
+<!-- ───────────────────────── 3 ───────────────────────── -->
+<section class="glass" id="s3">
+  <h2><span class="step">3</span>컨베이어 구동</h2>
+  <p class="goal">컨베이어를 돌리고 세운다. 박스 하나를 올려 실제로 실려 가는지 잰다.</p>
+
+  <h3>알아 둘 것</h3>
+  <ul>
+    <li><b>컨베이어는 움직이지 않는다.</b> 롤러는 제자리에 있는 kinematic 강체이고, 표면에 닿은 물체를 일정 속도로 밀어 주는 <b>표면 속도</b>만 가진다. 그래서 박스가 실려 간다.</li>
+    <li><b><code>create_conveyor_belt</code></b>가 액션 그래프(<code>ConveyorBeltGraph</code>)를 만들어 준다. 매 프레임 그래프 변수 <code>Velocity</code>를 읽어 표면 속도에 넣는다. 돌리고 세우는 것은 이 변수 하나를 0.30과 0 사이에서 바꾸는 일이다.</li>
+    <li><b>순서가 중요하다.</b> 롤러를 kinematic으로 지정하는 것은 reference를 붙이는 것과 한 묶음(<code>Sdf.ChangeBlock</code>)으로 하고, <code>configure_conveyor()</code>는 에셋이 다 열린 뒤에 부른다.</li>
+  </ul>
+
+  <h3>코드: <code>scene.py</code>의 컨베이어 함수</h3>
+  {{code:palletizing/scene.py:_keep_rollers_kinematic}}
+  {{code:palletizing/scene.py:configure_conveyor}}
+  {{code:palletizing/scene.py:set_conveyor_running}}
+
+  <h3>코드: <code>step03_conveyor.py</code></h3>
+  <p>박스 USD(<code>small_KLT.usd</code>)는 이미 질량 0.56 kg의 강체로 만들어져 있다. reference로 붙이고 <code>RigidPrim</code>으로 감싸면 위치를 읽고 쓸 수 있다.</p>
+  {{code:step03_conveyor.py}}
+
+  <h3>실행과 기대 결과</h3>
+<pre class="cmd">C:\isaacsim-6.2\python.bat step03_conveyor.py</pre>
+<pre class="out">구동 1초: y 1.428 → 1.128  (이동 0.300 m, 기대값 약 0.30)
+정지 1초: y 1.114 → 1.114  (이동 0.000 m, 기대값 약 0)
+[step03] PASS</pre>
+  <div class="note"><b>해 볼 것.</b> <code>scene.py</code>의 <code>CONVEYOR_SPEED</code>를 0.6으로 바꾸면 이동 거리가 두 배가 된다. 확인하고 0.30으로 되돌린다.</div>
+
+  <label class="check"><input type="checkbox" data-done="s3"><span>박스가 실려 가고 멈추는 것을 봤다</span></label>
+</section>
+
+<!-- ───────────────────────── 4 ───────────────────────── -->
+<section class="glass" id="s4">
+  <h2><span class="step">4</span>무작위 박스 만들기</h2>
+  <p class="goal">컨베이어 입구에 박스를 무작위 위치·방향으로 하나씩 만들어 낸다. 절반은 엎어서 내보낸다.</p>
+
+  <h3>알아 둘 것</h3>
+  <ul>
+    <li><b>무작위 요소 세 가지.</b> 폭 방향 위치 <code>x</code>(±0.15 m), 수직축 둘레 회전(±180도), 엎어졌는지(확률 50%).</li>
+    <li><b>박스의 z축.</b> <code>small_KLT</code>는 로컬 z축이 바닥에서 입구로 향한다. Y축으로 180도 돌리면 입구가 아래로 간다. 5단계의 "뒤집기 필요" 판정이 이 z축을 본다.</li>
+    <li><b>만드는 시점.</b> 컨베이어 구역(<code>y &gt; 0</code>, <code>|x| &lt; 0.4</code>)에 박스가 있으면 기다린다. 로봇이 박스를 들고 구역 밖으로 나가는 순간 다음 박스가 나온다.</li>
+    <li><b>USD 위치와 물리 위치.</b> <code>RigidPrim(...)</code>에 준 위치는 USD에 적히고, <code>set_world_poses</code>는 물리 엔진의 위치를 바꾼다. 재생 중에 새로 만든 박스는 두 쪽을 같은 값으로 맞춘다.</li>
+  </ul>
+
+  <h3>코드: <code>palletizing/common.py</code></h3>
+  <p>여러 모듈이 함께 쓰는 자세 계산 도구다. 이 단계에서는 <code>rigid_pose</code>만 쓰지만 한 번에 써 둔다.</p>
+  {{code:palletizing/common.py}}
+
+  <h3>코드: <code>palletizing/spawner.py</code></h3>
+  {{code:palletizing/spawner.py}}
+
+  <h3>코드: <code>step04_spawn_bins.py</code></h3>
+  <p>아직 로봇이 박스를 집지 못하므로, 박스가 작업 구역에 닿으면 스크립트가 옆으로 치운다.</p>
+  {{code:step04_spawn_bins.py}}
+
+  <h3>실행과 기대 결과</h3>
+<pre class="cmd">C:\isaacsim-6.2\python.bat step04_spawn_bins.py --seed 3</pre>
+<pre class="out">&lt;박스 생성 bin_0: x=-0.079, 엎어짐&gt;
+  도착 위치 x=-0.079, y=0.697, z=-0.557 → 치움
+&lt;박스 생성 bin_1: x=+0.031, 엎어짐&gt;
+  도착 위치 x=+0.033, y=0.699, z=-0.557 → 치움
+&lt;박스 생성 bin_2: x=-0.146, 엎어짐&gt;
+  도착 위치 x=-0.144, y=0.696, z=-0.557 → 치움
+[step04] PASS</pre>
+  <p><code>--seed</code> 숫자를 바꾸면 위치와 엎어짐 순서가 달라진다. <code>--seed 5</code>는 처음 세 개가 "바로 놓임"으로 나온다.</p>
+
+  <label class="check"><input type="checkbox" data-done="s4"><span>박스가 매번 다른 자세로 나온다</span></label>
+</section>
+
+<!-- ───────────────────────── 5 ───────────────────────── -->
+<section class="glass" id="s5">
+  <h2><span class="step">5</span>무작위 위치 인식</h2>
+  <p class="goal">작업 구역에 들어온 박스가 어디에 어떤 방향으로 놓였는지 읽고, 흡착컵이 가야 할 자세와 뒤집기 필요 여부를 계산한다.</p>
+
+  <div class="note warn"><b>이 예제의 "인식"은 카메라 비전이 아니다.</b> 시뮬레이터가 알고 있는 박스의 월드 포즈를 그대로 읽는다. 공식 예제도 같다. 실제 설비라면 <code>read_world_pose</code> 자리에 3D 비전의 포즈 추정 결과가 들어가고, 그 아래 계산은 그대로 쓸 수 있다.</div>
+
+  <h3>알아 둘 것</h3>
+  <ul>
+    <li><b>바닥판을 읽는다.</b> 박스 안의 <code>Collision/Cube_03</code>이 바닥판이다. 흡착컵이 붙을 평평한 면이라서 박스 중심이 아니라 이 prim의 포즈를 읽는다.</li>
+    <li><b>뒤집기 판정.</b> 박스 z축(바닥 → 입구)이 위를 향하면 입구가 위다. 이 박스는 엎어서 쌓아야 하므로 "뒤집기 필요"다. 식으로는 <code>dot(위쪽, 박스 z축) &gt; 0</code> 한 줄이다.</li>
+    <li><b>집을 자세 <code>grasp_T</code>.</b> 4x4 행렬이고 x축이 흡착컵이 다가가는 방향이다. 두 경우 모두 위에서 아래로 내려간다. 입구가 위면 박스 안으로 들어가 안쪽 바닥을, 엎어져 있으면 드러난 바깥 바닥을 집는다.</li>
+  </ul>
+  <figure>
+  <svg viewBox="0 0 640 210" role="img" aria-label="박스 두 자세와 흡착컵 접근 방향" style="width:100%;height:auto">
+    <g transform="translate(60,20)">
+      <text x="110" y="10" font-size="13" fill="#ffcf7a" text-anchor="middle">바로 놓임 → 뒤집기 필요</text>
+      <path d="M30 60 L30 150 L190 150 L190 60" fill="none" stroke="#e8edf6" stroke-width="5" stroke-linejoin="round"/>
+      <line x1="160" y1="144" x2="160" y2="104" stroke="#c4b0ff" stroke-width="2" marker-end="url(#ah2)"/>
+      <text x="200" y="128" font-size="12" fill="#c4b0ff">박스 z축 ↑</text>
+      <rect x="100" y="24" width="20" height="100" rx="3" fill="rgba(124,196,255,.25)" stroke="#7cc4ff"/>
+      <rect x="92" y="124" width="36" height="14" rx="4" fill="#7cc4ff"/>
+      <text x="136" y="48" font-size="12" fill="#7cc4ff">흡착컵 (안쪽 바닥)</text>
+    </g>
+    <g transform="translate(360,20)">
+      <text x="110" y="10" font-size="13" fill="#9ef0c5" text-anchor="middle">엎어짐 → 바로 쌓기</text>
+      <path d="M30 150 L30 60 L190 60 L190 150" fill="none" stroke="#e8edf6" stroke-width="5" stroke-linejoin="round"/>
+      <line x1="160" y1="70" x2="160" y2="110" stroke="#c4b0ff" stroke-width="2" marker-end="url(#ah2)"/>
+      <text x="200" y="96" font-size="12" fill="#c4b0ff">박스 z축 ↓</text>
+      <rect x="100" y="14" width="20" height="24" rx="3" fill="rgba(124,196,255,.25)" stroke="#7cc4ff"/>
+      <rect x="92" y="38" width="36" height="14" rx="4" fill="#7cc4ff"/>
+      <text x="136" y="34" font-size="12" fill="#7cc4ff">흡착컵 (바깥 바닥)</text>
+    </g>
+    <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#c4b0ff"/></marker></defs>
+    <line x1="20" y1="174" x2="620" y2="174" stroke="rgba(255,255,255,.25)"/>
+    <text x="24" y="194" font-size="12" fill="#8593ab">컨베이어 면</text>
+  </svg>
+  </figure>
+
+  <h3>코드: <code>palletizing/perception.py</code></h3>
+  {{code:palletizing/perception.py}}
+
+  <h3>코드: <code>step05_perception.py</code></h3>
+  <p>박스를 만들 때 엎었는지(<code>spawner.upside_down_log</code>)를 정답지로 삼아, 인식 결과가 맞는지 스스로 채점한다.</p>
+  {{code:step05_perception.py}}
+
+  <h3>실행과 기대 결과</h3>
+<pre class="cmd">C:\isaacsim-6.2\python.bat step05_perception.py --seed 5</pre>
+<pre class="out">&lt;박스 생성 bin_0: x=+0.037, 바로 놓임&gt;
+  인식: 집을 점 (+0.035, 0.696, -0.626), 접근 방향 [-0. -0. -1.], 회전 +88도, 뒤집기 필요 → 정답
+&lt;박스 생성 bin_1: x=+0.133, 바로 놓임&gt;
+  인식: 집을 점 (+0.131, 0.696, -0.626), 접근 방향 [ 0. -0. -1.], 회전 +86도, 뒤집기 필요 → 정답
+&lt;박스 생성 bin_2: x=-0.141, 바로 놓임&gt;
+  인식: 집을 점 (-0.141, 0.696, -0.626), 접근 방향 [-0. -0. -1.], 회전 +167도, 뒤집기 필요 → 정답
+&lt;박스 생성 bin_3: x=+0.045, 엎어짐&gt;
+  인식: 집을 점 (+0.043, 0.695, -0.483), 접근 방향 [ 0.  0. -1.], 회전 +145도, 뒤집기 불필요 → 정답
+[step05] PASS</pre>
+  <p>읽을 점. 집을 점의 높이가 바로 놓인 박스는 <code>-0.626</code>(안쪽 바닥), 엎어진 박스는 <code>-0.483</code>(위로 드러난 바닥)이다. 차이 0.143 m가 박스 높이다.</p>
+
+  <label class="check"><input type="checkbox" data-done="s5"><span>인식 결과가 모두 정답으로 나온다</span></label>
+</section>
+
+<!-- ───────────────────────── 6 ───────────────────────── -->
+<section class="glass" id="s6">
+  <h2><span class="step">6</span>붙였다 떨어뜨리기</h2>
+  <p class="goal">흡착 그리퍼를 켜서 박스를 붙이고, 로봇을 움직여도 따라오는지 보고, 꺼서 떨어뜨린다.</p>
+
+  <h3>알아 둘 것</h3>
+  <ul>
+    <li><b>그리퍼는 로봇 USD에 이미 들어 있다.</b> <code>Gripper=short_suction</code>을 고르면 <code>ee_link/SurfaceGripper</code>(그리퍼 본체)와 <code>ee_link/suction_cup/Suction_Joint</code>(붙는 지점)가 따라온다.</li>
+    <li><b>붙이기 = 조인트 만들기.</b> <code>close</code>를 부르면 붙는 지점 앞 2 cm(<code>maxGripDistance</code>) 안의 강체를 찾아 조인트로 묶는다. 닿은 물체가 없으면 상태가 <code>Closing</code>에 머물고 계속 다시 시도한다. 물체가 묶여야 <code>Closed</code>가 된다.</li>
+    <li><b>떼기 = 조인트 풀기.</b> <code>open</code>을 부르면 조인트가 사라지고 박스는 중력으로 떨어진다.</li>
+    <li><b>컵 끝 위치.</b> <code>ee_link</code> 원점에서 +X 방향 17 cm가 흡착컵 끝이다. 뒤 단계의 모든 목표는 이 "컵 끝" 기준이다.</li>
+  </ul>
+
+  <h3>코드: <code>palletizing/gripper.py</code></h3>
+  {{code:palletizing/gripper.py}}
+
+  <h3>코드: <code>step06_gripper.py</code></h3>
+  <p>로봇을 원하는 곳으로 보내는 기능은 7단계에서 만든다. 여기서는 반대로 박스를 컵 앞에 가져다 놓는다.</p>
+  {{code:step06_gripper.py}}
+
+  <h3>실행과 기대 결과</h3>
+<pre class="cmd">C:\isaacsim-6.2\python.bat step06_gripper.py</pre>
+<pre class="out">흡착컵 끝 위치: [0.164 0.688 0.478]  컵이 향하는 방향: [ 0.  0. -1.]
+닫기 후 1초: 상태 Closed(붙음), 박스 높이 z=0.386
+로봇 회전 후: 컵 끝과 박스 중심 거리 0.092 m (붙어 있으면 약 0.08)
+열기 후 0.5초(깨우기 전): 박스 높이 z=0.386
+열기 후 1.5초: 상태 Open(놓음), 박스 높이 z=-0.557
+[step06] PASS</pre>
+  <div class="note warn"><b>직접 겪은 함정.</b> 흡착을 껐는데 박스가 공중에 그대로 떠 있었다(<code>z=0.386</code>). 가만히 매달려 있던 강체를 물리 엔진이 "잠재워" 두었고, 조인트가 풀려도 스스로 깨어나지 않았기 때문이다. 속도를 아주 조금 주어 깨우자 떨어졌다. 전체 작업에서는 박스를 놓는 순간 팔레트에 닿아 있거나 로봇이 움직이는 중이라 이 문제가 드러나지 않는다.</div>
+  <figure class="img"><img class="shot" src="img/attached.jpg" alt="흡착컵에 붙어 들려 올라가는 박스" width="1280" height="720" loading="lazy">
+    <figcaption>흡착컵에 붙은 박스 (완성본 실행 중 화면).</figcaption></figure>
+
+  <label class="check"><input type="checkbox" data-done="s6"><span>박스가 붙고, 따라오고, 떨어진다</span></label>
+</section>
+
+<!-- ───────────────────────── 7 ───────────────────────── -->
+<section class="glass" id="s7">
+  <h2><span class="step">7</span>로봇 움직이기</h2>
+  <p class="goal">"흡착컵 끝을 이 위치, 이 방향으로"라는 명령 하나로 로봇을 보낸다.</p>
+
+  <h3>알아 둘 것</h3>
+  <ul>
+    <li><b>RMPflow.</b> 경로를 미리 다 짜 두는 방식이 아니다. 매 스텝 "목표로 끌리는 힘"과 "장애물·관절 한계에서 밀리는 힘"을 합쳐 다음 관절 목표를 낸다. 그래서 목표가 조금씩 움직여도 계속 따라간다. UR10용 설정은 Isaac Sim에 들어 있다(<code>load_cumotion_supported_robot("ur10")</code>).</li>
+    <li><b>컵 끝 → tool0 환산.</b> RMPflow는 로봇의 <code>tool0</code> 프레임을 움직인다. 명령은 컵 끝 기준이므로 컵 길이 17 cm만큼 뒤로 물리고, <code>ee_link</code>와 <code>tool0</code>의 축 방향 차이를 회전으로 보정한다.</li>
+    <li><b>접근 깔때기.</b> 목표로 곧장 가면 비스듬히 들어가 박스 벽에 걸린다. 컵이 접근선(목표 위 수직선)에서 벗어난 만큼 목표를 위로 물려 두면, 먼저 위에 정렬한 뒤 곧게 내려간다.</li>
+    <li><b>가상 장애물.</b> 화면에 안 보이는 공과 캡슐을 경로 계산에만 넣는다. 컨베이어와 팔레트 사이를 건널 때 켜면 팔이 높이 돌아서 간다.</li>
+    <li><b>홈 복귀는 관절 제어.</b> 같은 컵 위치라도 팔꿈치가 접히는 모양은 여러 가지다. 관절값으로 직접 돌아가야 매번 같은 모양에서 다음 동작을 시작한다.</li>
+  </ul>
+
+  <h3>코드: <code>palletizing/motion.py</code></h3>
+  <p>가장 긴 파일이다. 핵심 세 조각을 먼저 읽고, 아래 접힌 블록에서 전체를 따라 쓴다.</p>
+  <p><b>(1) 명령 형식과 접근 깔때기.</b></p>
+  {{code:palletizing/motion.py:MotionCommand}}
+  {{code:palletizing/motion.py:shift_for_approach}}
+  <p><b>(2) 매 스텝 실행.</b> 관절 목표가 있으면 관절 제어기, 없으면 RMPflow를 고른다.</p>
+  {{code:palletizing/motion.py:Ur10.step}}
+  <p><b>(3) 컵 끝 목표를 tool0 목표로.</b></p>
+  {{code:palletizing/motion.py:Ur10._tool_setpoint}}
+  <details><summary>motion.py 전체 보기 (따라 쓸 원본)</summary>
+  {{code:palletizing/motion.py}}
+  </details>
+  <div class="note"><b>준비 순서.</b> <code>create_planning_obstacles()</code> → 에셋 대기 → <code>robot.setup()</code> → 재생 → <code>robot.start()</code>. <code>setup()</code>은 재생 전에, <code>start()</code>는 재생 후에 부른다.</div>
+
+  <h3>코드: <code>step07_motion.py</code></h3>
+  {{code:step07_motion.py}}
+
+  <h3>실행과 기대 결과</h3>
+<pre class="cmd">C:\isaacsim-6.2\python.bat step07_motion.py</pre>
+<pre class="out">홈에서 컵 끝 위치: [0.164 0.688 0.478]
+  컨베이어 위 집는 높이: 2.32초에 도착, 위치 오차 9.0 mm
+  30 cm 들어 올리기: 0.73초에 도착, 위치 오차 18.8 mm
+  팔레트 위: 3.30초에 도착, 위치 오차 17.9 mm
+  홈 복귀(관절 제어): 0.85초에 도착, 위치 오차 0.0 mm
+[step07] PASS</pre>
+  <p>오차는 각 이동에 준 도착 기준(<code>p_thresh</code>, 1~2 cm) 안에 들어온 순간의 값이다. 기준을 줄이면 더 정확히 맞춘 뒤 넘어가고, 그만큼 오래 걸린다.</p>
+  <div class="note"><b>해 볼 것.</b> (1)번 이동에서 <code>make_approach(...)</code>를 <code>None</code>으로 바꿔 실행하면 컵이 비스듬히 내려간다. 깔때기가 하는 일을 눈으로 볼 수 있다.</div>
+
+  <label class="check"><input type="checkbox" data-done="s7"><span>컵 끝이 네 지점에 차례로 도착한다</span></label>
+</section>
+
+<!-- ───────────────────────── 8 ───────────────────────── -->
+<section class="glass" id="s8">
+  <h2><span class="step">8</span>한 번 집어 놓기</h2>
+  <p class="goal">지금까지 만든 부품을 묶어, 박스 하나를 컨베이어에서 집어 팔레트 1번 자리에 놓는다.</p>
+
+  <h3>알아 둘 것</h3>
+  <ul>
+    <li><b>동작 조각(Task).</b> "기다리기", "집을 자세로 가기", "흡착 켜기", "들어 올리기" 같은 작은 동작이다. 각 조각은 관측을 받아 <code>(끝났는가, 명령)</code>을 돌려준다. 시뮬레이터를 직접 만지지 않는다.</li>
+    <li><b>관측과 명령.</b> <code>Observation</code>은 한 스텝에 본 것 전부, <code>Command</code>는 한 스텝에 할 일 전부다. 조각과 셀 사이에는 이 둘만 오간다.</li>
+    <li><b>셀(PalletizingCell).</b> <code>read()</code>로 관측을 만들고 <code>apply()</code>로 명령을 실행한다. 판단은 하지 않는다. 5단계의 인식 함수와 6·7단계의 로봇을 여기서 묶는다.</li>
+    <li><b>붙었는지 판정.</b> 컵이 집을 자세 10 cm 안에 있고 그리퍼 상태가 <code>Closed</code>면 붙은 것으로 본다. 붙으면 컨베이어를 다시 돌려 다음 박스를 부른다.</li>
+  </ul>
+  <div class="tablewrap"><table>
+    <tr><th>집기 순서 (<code>pick_sequence</code>)</th><th>놓기 순서 (<code>place_sequence</code>)</th></tr>
+    <tr><td>1. 1초 기다린 뒤 컨베이어 정지<br>2. 집을 자세로 접근<br>3. 1초 대기<br>4. 흡착 켜고 붙을 때까지<br>5. 50 cm 들어 올리기</td>
+        <td>6. 팔레트의 다음 자리로 내려가기<br>7. 0.5초 대기<br>8. 흡착 끄기<br>9. 10 cm 올라가기<br>10. 홈으로</td></tr>
+  </table></div>
+
+  <h3>코드: <code>palletizing/tasks.py</code></h3>
+  <p>먼저 관측·명령 형식과 대표 조각 두 개, 그리고 조각을 이어 붙인 순서를 읽는다.</p>
+  {{code:palletizing/tasks.py:Observation}}
+  {{code:palletizing/tasks.py:Command}}
+  {{code:palletizing/tasks.py:Move}}
+  {{code:palletizing/tasks.py:ReachToPick}}
+  {{code:palletizing/tasks.py:pick_sequence}}
+  {{code:palletizing/tasks.py:place_sequence}}
+  <details><summary>tasks.py 전체 보기 (따라 쓸 원본)</summary>
+  {{code:palletizing/tasks.py}}
+  </details>
+
+  <h3>코드: <code>palletizing/cell.py</code></h3>
+  <p>놓을 자리 9곳을 만드는 함수부터 본다. 팔레트 윗면 높이에 박스 반 높이를 더한 곳이 컵 끝의 목표다.</p>
+  {{code:palletizing/cell.py:stack_coordinates}}
+  {{code:palletizing/cell.py:PalletizingCell._update_active_bin}}
+  <details><summary>cell.py 전체 보기 (따라 쓸 원본)</summary>
+  {{code:palletizing/cell.py}}
+  </details>
+
+  <h3>코드: <code>step08_pick_place.py</code></h3>
+  <p>박스를 전부 엎어서 내보내(<code>upside_down_probability=1.0</code>) 뒤집기 없이 집기 + 놓기만 한 번 돈다.</p>
+  {{code:step08_pick_place.py}}
+
+  <h3>실행과 기대 결과</h3>
+<pre class="cmd">C:\isaacsim-6.2\python.bat step08_pick_place.py --seed 2</pre>
+<pre class="out">&lt;박스 생성 bin_0: x=+0.137, 엎어짐&gt;
+&lt;작업 시작: 동작 10개&gt;
+  1/10 Wait 완료 (t=3.90s)
+  2/10 ReachToPick 완료 (t=6.12s)
+  3/10 Wait 완료 (t=7.12s)
+&lt;흡착 켜기&gt;
+  4/10 CloseGripper 완료 (t=7.15s)
+  5/10 LiftToClearance 완료 (t=8.27s)
+&lt;박스 생성 bin_1: x=-0.125, 엎어짐&gt;
+  6/10 ReachToPlace 완료 (t=11.78s)
+  7/10 Wait 완료 (t=12.28s)
+&lt;흡착 끄기&gt;
+  8/10 OpenGripper 완료 (t=12.30s)
+  9/10 TimedLift 완료 (t=12.55s)
+  10/10 OrientToHome 완료 (t=13.58s)
+놓인 위치 (1.054, -0.622, -0.594), 목표와의 수평 오차 4 mm
+[step08] PASS</pre>
+  <p>읽을 점. 5번(들어 올리기)이 끝난 직후 <code>bin_1</code>이 생긴다. 박스가 컨베이어 구역을 벗어나자 4단계의 생성기가 다음 박스를 낸 것이다.</p>
+  <figure class="img"><img class="shot" src="img/placing.jpg" alt="팔레트에 박스를 내려놓는 로봇" width="1280" height="720" loading="lazy">
+    <figcaption>팔레트의 놓을 자리로 내려가는 중.</figcaption></figure>
+
+  <label class="check"><input type="checkbox" data-done="s8"><span>박스 하나가 팔레트 1번 자리에 놓였다</span></label>
+</section>
+
+<!-- ───────────────────────── 9 ───────────────────────── -->
+<section class="glass" id="s9">
+  <h2><span class="step">9</span>뒤집고 차곡차곡 쌓기</h2>
+  <p class="goal">상태기계를 얹어, 박스마다 "집기 → (필요하면 뒤집기 → 다시 집기) → 놓기"를 반복해 9개를 쌓는다.</p>
+
+  <h3>알아 둘 것</h3>
+  <ul>
+    <li><b>상태기계.</b> 8단계는 순서가 하나로 정해져 있었다. 이제는 박스에 따라 갈 길이 갈린다. "지금 어느 단계인가"를 상태로 두고, 일이 끝날 때마다 조건을 보고 다음 상태로 옮긴다. <code>transitions</code> 패키지(Isaac Sim에 들어 있다)가 이 표를 실행해 준다.</li>
+    <li><b>뒤집기의 원리.</b> 로봇이 박스를 돌리는 게 아니다. 입구가 위인 박스를 안쪽 바닥으로 집어 뒤집기 장치에 비스듬히 걸쳐 놓고 손을 빼면, 박스가 넘어가며 엎어진다. 그 뒤 드러난 바깥 바닥을 다시 집는다.</li>
+    <li><b>들고 있을 때의 "위".</b> 박스가 기울어진 채 들려 있으면 중력 기준 판정이 틀린다. 그래서 붙어 있는 동안은 컵의 반대 방향을 "위"로 쓴다(<code>cell.py</code>의 <code>up_vec</code>).</li>
+    <li><b>실패 복구.</b> 박스를 놓치면(<code>has_active_bin</code>이 거짓) 대기 상태로 돌아가 다음 박스를 기다린다.</li>
+  </ul>
+  <figure>
+  <svg viewBox="0 0 640 230" role="img" aria-label="상태 전이도" style="width:100%;height:auto">
+    <defs><marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#b4bfd3"/></marker></defs>
+    <g font-size="14" text-anchor="middle" fill="#e8edf6">
+      <rect x="20" y="80" width="100" height="46" rx="12" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.3)"/><text x="70" y="100">idle</text><text x="70" y="117" font-size="11" fill="#8593ab">대기</text>
+      <rect x="180" y="80" width="110" height="46" rx="12" fill="rgba(124,196,255,.14)" stroke="#7cc4ff"/><text x="235" y="100">picking</text><text x="235" y="117" font-size="11" fill="#8593ab">집기</text>
+      <rect x="350" y="18" width="110" height="46" rx="12" fill="rgba(196,176,255,.14)" stroke="#c4b0ff"/><text x="405" y="38">flipping</text><text x="405" y="55" font-size="11" fill="#8593ab">뒤집기</text>
+      <rect x="350" y="142" width="110" height="46" rx="12" fill="rgba(158,240,197,.12)" stroke="#9ef0c5"/><text x="405" y="162">placing</text><text x="405" y="179" font-size="11" fill="#8593ab">놓기</text>
+      <rect x="520" y="142" width="100" height="46" rx="12" fill="rgba(255,207,122,.12)" stroke="#ffcf7a"/><text x="570" y="162">done</text><text x="570" y="179" font-size="11" fill="#8593ab">완료</text>
+    </g>
+    <g stroke="#b4bfd3" stroke-width="1.5" fill="none" marker-end="url(#ah3)">
+      <path d="M120 103 L178 103"/>
+      <path d="M290 92 L348 52"/>
+      <path d="M350 34 C300 20,250 40,238 78"/>
+      <path d="M290 114 L348 154"/>
+      <path d="M460 165 L518 165"/>
+      <path d="M380 188 C300 228,120 222,74 128"/>
+    </g>
+    <g font-size="11.5" fill="#b4bfd3">
+      <text x="126" y="96">박스 도착</text>
+      <text x="296" y="84">뒤집기 필요</text>
+      <text x="232" y="34">뒤집기 끝 → 다시 집기</text>
+      <text x="296" y="146">바로 쌓기</text>
+      <text x="466" y="158">마지막</text>
+      <text x="170" y="214">다음 박스로</text>
+    </g>
+  </svg>
+  </figure>
+
+  <h3>코드: <code>palletizing/fsm.py</code></h3>
+  {{code:palletizing/fsm.py}}
+
+  <h3>뒤집기 순서</h3>
+  <p><code>tasks.py</code>에 이미 써 둔 조각들이다. 홈 자세를 거쳐 뒤집기 장치로 가고, 놓고, 컵을 박스 밖으로 빼며 물러난다.</p>
+  {{code:palletizing/tasks.py:flip_sequence}}
+  {{code:palletizing/tasks.py:MoveToFlipStation}}
+
+  <h3>코드: <code>step09_palletizing.py</code></h3>
+  <p>주 루프가 "전체 그림"에서 본 네 줄 그대로다.</p>
+  {{code:step09_palletizing.py}}
+
+  <h3>실행과 기대 결과</h3>
+  <p>먼저 뒤집기가 꼭 나오는 순서로 2개만 쌓아 본다.</p>
+<pre class="cmd">C:\isaacsim-6.2\python.bat step09_palletizing.py --seed 5 --max-bins 2</pre>
+<pre class="out">&lt;박스 생성 bin_0: x=+0.037, 바로 놓임&gt;
+  -&gt; picking
+&lt;흡착 켜기&gt;
+  -&gt; flipping
+&lt;박스 생성 bin_1: x=+0.133, 바로 놓임&gt;
+&lt;흡착 끄기&gt;
+  -&gt; picking
+&lt;흡착 켜기&gt;
+  -&gt; placing
+&lt;흡착 끄기&gt;
+  -&gt; idle
+  -&gt; picking
+  …
+  -&gt; done
+&lt;쌓은 박스 2/2, 거친 상태 ['done', 'flipping', 'idle', 'picking', 'placing'], 43초&gt;
+[step09] PASS</pre>
+  <div class="grid2">
+    <figure class="img"><img class="shot" src="img/flipped.jpg" alt="뒤집기 장치에서 엎어진 박스" width="1280" height="720" loading="lazy"><figcaption>뒤집기 장치에 걸쳐 놓은 박스가 엎어진 뒤.</figcaption></figure>
+    <figure class="img"><img class="shot" src="img/bin_arrived.jpg" alt="작업 구역에 도착한 박스" width="1280" height="720" loading="lazy"><figcaption>작업 구역에 도착해 집기를 기다리는 박스.</figcaption></figure>
+  </div>
+  <p>그다음 옵션 없이 실행하면 9개를 모두 쌓고 <code>done</code>에서 멈춘다.</p>
+<pre class="cmd">C:\isaacsim-6.2\python.bat step09_palletizing.py</pre>
+<!--FULLRUN-->
+
+  <label class="check"><input type="checkbox" data-done="s9"><span>뒤집기를 포함해 팔레트에 쌓이는 것을 봤다</span></label>
+</section>
+
+<!-- ───────────────────────── 내 것으로 ───────────────────────── -->
+<section class="glass" id="custom">
+  <h2>내 것으로 바꾸기</h2>
+  <p class="goal">완성본이 돌면, 한 번에 하나씩 바꿔 가며 내 설비로 옮긴다.</p>
+  <div class="tablewrap"><table>
+    <tr><th>바꾸고 싶은 것</th><th>고칠 곳</th><th>주의</th></tr>
+    <tr><td>쌓는 패턴·개수</td><td><code>cell.py</code>의 <code>stack_coordinates()</code></td><td>목록 순서가 쌓는 순서다. 2층은 z에 <code>BIN_HEIGHT</code>를 더한 좌표를 뒤에 덧붙인다. 로봇이 닿는 범위인지 7단계 스크립트로 먼저 확인한다.</td></tr>
+    <tr><td>다른 제품</td><td><code>scene.py</code>의 <code>"bin"</code> 주소, <code>perception.py</code>의 <code>base_path</code>와 <code>margin</code>, <code>cell.py</code>의 <code>BIN_HEIGHT</code></td><td>제품 USD가 강체(RigidBody)여야 하고 흡착할 평평한 면이 필요하다. 뒤집을 일이 없는 제품이면 <code>needs_flip</code>을 항상 <code>False</code>로 둔다.</td></tr>
+    <tr><td>박스가 나오는 위치·빈도</td><td><code>spawner.py</code>의 <code>random_bin_pose()</code>와 <code>step()</code>의 구역 조건</td><td>작업 구역(<code>perception.py</code>의 <code>WORK_ZONE_*</code>)과 함께 맞춘다.</td></tr>
+    <tr><td>컨베이어 속도</td><td><code>scene.py</code>의 <code>CONVEYOR_SPEED</code></td><td>빨라지면 정지까지 밀리는 거리가 늘어 집을 위치가 달라진다.</td></tr>
+    <tr><td>실제 비전으로 인식</td><td><code>perception.py</code>의 <code>estimate_grasp()</code> 첫 줄</td><td><code>read_world_pose</code> 대신 비전이 준 바닥면 포즈를 넣는다. 나머지 계산은 같다.</td></tr>
+    <tr><td>다른 로봇</td><td><code>scene.py</code>의 <code>"ur10"</code> 주소, <code>motion.py</code>의 <code>HOME_JOINTS</code>·<code>TIP_OFFSET</code>·축 보정, 가상 장애물</td><td>RMPflow 설정이 있는 로봇이어야 한다. Isaac Sim에 설정이 들어 있지 않은 로봇은 로봇 기술 파일과 RMPflow 설정을 직접 만들어야 하며, 이 가이드의 범위 밖이다.</td></tr>
+  </table></div>
+  <div class="note"><b>내 URDF 로봇을 쓰려면.</b> 먼저 URDF를 USD로 바꿔야 한다. 설치 폴더의 <code>standalone_examples\api\isaacsim.asset.importer.urdf\urdf_import.py</code>가 그 예제다. 바꾼 USD의 주소를 1단계의 <code>ur10_usd</code> 자리에 넣으면 불러오는 것까지는 같은 방법으로 된다. 흡착 그리퍼는 <code>isaacsim.robot.surface_gripper</code>의 <code>create_surface_gripper()</code>로 끝단 링크에 직접 달아야 한다.</div>
+</section>
+
+<!-- ───────────────────────── 막혔을 때 ───────────────────────── -->
+<section class="glass" id="trouble">
+  <h2>막혔을 때</h2>
+  <div class="tablewrap"><table>
+    <tr><th>증상</th><th>원인과 조치</th></tr>
+    <tr><td><code>ModuleNotFoundError: isaacsim.core…</code> 또는 <code>pxr</code></td><td><code>SimulationApp</code>을 만들기 전에 import했다. <code>start_app()</code> 아래로 옮긴다. 일반 <code>python</code>으로 실행한 경우에도 같은 오류가 난다. <code>python.bat</code>으로 실행한다.</td></tr>
+    <tr><td><code>ModuleNotFoundError: palletizing</code></td><td>작업 폴더가 아닌 곳에서 실행했거나 <code>palletizing/__init__.py</code>가 없다.</td></tr>
+    <tr><td>에셋 서버를 찾지 못했다는 오류, 또는 빈 화면에서 오래 멈춤</td><td>인터넷 연결을 확인한다. 처음 실행은 내려받기 때문에 오래 걸린다.</td></tr>
+    <tr><td>컨베이어 롤러가 아래로 떨어진다 †</td><td><code>_keep_rollers_kinematic</code>이 빠졌거나 <code>Sdf.ChangeBlock</code> 밖에서 불렀다.</td></tr>
+    <tr><td>"컨베이어 롤러가 아직 열리지 않았다"</td><td><code>configure_conveyor()</code>를 <code>wait_for_assets(app)</code>보다 먼저 불렀다.</td></tr>
+    <tr><td>박스가 컨베이어 위에서 안 움직인다</td><td><code>configure_conveyor()</code>를 안 불렀거나 재생(Play) 상태가 아니다.</td></tr>
+    <tr><td>흡착을 켜도 <code>Closed</code>가 안 된다</td><td>컵 끝과 박스 면 사이가 2 cm보다 멀다. 6단계의 <code>bin_center</code> 여유를 줄이거나, 8단계라면 <code>ReachToPick</code>의 도착 기준을 확인한다.</td></tr>
+    <tr><td>흡착을 꺼도 박스가 안 떨어진다</td><td>박스가 잠든 상태다. 6단계의 함정 설명을 본다.</td></tr>
+    <tr><td>로봇이 하우징에 걸려 떨린다 †</td><td>2단계의 충돌 그룹 설정이 빠졌다.</td></tr>
+    <tr><td>"RMPflow 초기화 실패" †</td><td><code>robot.setup()</code>을 <code>create_planning_obstacles()</code>보다 먼저 불렀거나, 에셋이 열리기 전에 불렀다.</td></tr>
+    <tr><td><code>PASS</code>가 찍힌 뒤 프로세스가 안 끝난다</td><td>창 없이 돌릴 때 종료 단계에서 멈추는 경우가 있다. <kbd>Ctrl</kbd>+<kbd>C</kbd>로 끝낸다. 결과에는 영향이 없다.</td></tr>
+  </table></div>
+  <p>† 표시는 코드 구조에서 예상한 원인이다. 직접 재현해 보지는 않았다. 나머지는 이 가이드를 만들며 겪었거나 코드가 직접 내는 오류다.</p>
+</section>
+
+<!-- ───────────────────────── 대응표 ───────────────────────── -->
+<section class="glass" id="map">
+  <h2>공식 예제 대응표</h2>
+  <p class="goal">이 가이드의 코드는 Isaac Sim 6.2에 들어 있는 공식 예제를 기능별로 나눠 옮긴 것이다. 원본과 나란히 놓고 읽을 수 있다.</p>
+  <p>원본 위치: <code>C:\isaacsim-6.2\exts\isaacsim.robot_motion.examples\isaacsim\robot_motion\examples\manipulation\ur10_palletizing.py</code> (1,720줄, Apache-2.0). Robotics Examples 창의 <b>Manipulation → UR10 Palletizing</b>이 이 파일을 쓴다.</p>
+  <div class="tablewrap"><table>
+    <tr><th>이 가이드</th><th>공식 예제의 이름</th></tr>
+    <tr><td><code>scene.build_scene</code>, <code>configure_conveyor</code></td><td><code>build_scene</code>, <code>configure_conveyor</code>, <code>Ur10Assets</code></td></tr>
+    <tr><td><code>spawner.BinSpawner</code>, <code>random_bin_pose</code></td><td><code>BinSpawner</code>, <code>random_bin_spawn_transform</code></td></tr>
+    <tr><td><code>perception.find_active_bin</code>, <code>estimate_grasp</code></td><td><code>BinStackingContext.monitor_bins</code>, <code>monitor_active_bin_grasp_T</code></td></tr>
+    <tr><td><code>gripper.SuctionGripper</code></td><td><code>DirectSurfaceGripper</code></td></tr>
+    <tr><td><code>motion.Ur10</code></td><td><code>Ur10</code> + <code>Ur10MotionController</code></td></tr>
+    <tr><td><code>tasks.Observation</code>, <code>Command</code>, 동작 조각</td><td><code>PalletizerObservation</code>, <code>PalletizerCommand</code>, <code>_SubState</code> 하위 클래스</td></tr>
+    <tr><td><code>cell.PalletizingCell</code></td><td><code>BinStackingContext</code></td></tr>
+    <tr><td><code>fsm.PalletizerFSM</code>, <code>PalletizerController</code></td><td>같은 이름</td></tr>
+  </table></div>
+  <p>줄인 것. 시험용 가짜 그리퍼(<code>TestSurfaceGripper</code>)와 Robotics Examples 창에 등록하는 UI 코드는 뺐다. 동작 수치(속도, 도착 기준, 목표 좌표)는 공식 값 그대로다.</p>
+</section>
+
+<footer>
+  <p>Isaac Sim 6.2.0-rc.14, Windows 11, RTX 3070에서 2026-11-23에 실행해 확인했다. 가이드의 코드 블록은 저장소의 실제 소스에서 자동으로 뽑은 것이다(<code>docs/build_guide.py</code>).</p>
+</footer>
+
+</main>
+</div>
+
+<script>
+// 복사 버튼
+document.querySelectorAll("button.copy").forEach(function (button) {
+  button.addEventListener("click", function () {
+    var code = button.closest("figure").querySelector("pre").innerText;
+    navigator.clipboard.writeText(code).then(function () {
+      button.textContent = "복사됨"; button.classList.add("ok");
+      setTimeout(function () { button.textContent = "복사"; button.classList.remove("ok"); }, 1400);
+    });
+  });
+});
+// 진행 체크 (이 브라우저에 저장)
+var KEY = "ur10-palletizing-guide-done";
+var done = {};
+try { done = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
+var boxes = document.querySelectorAll("input[data-done]");
+function refresh() {
+  var count = 0;
+  boxes.forEach(function (box) {
+    var id = box.dataset.done; box.checked = !!done[id]; if (box.checked) count++;
+    var link = document.querySelector('nav.toc a[data-step="' + id + '"]');
+    if (link) link.classList.toggle("done", box.checked);
+  });
+  document.getElementById("progress-text").textContent = "진행 " + count + " / " + boxes.length;
+  document.getElementById("progress-bar").style.width = (100 * count / boxes.length) + "%";
+}
+boxes.forEach(function (box) {
+  box.addEventListener("change", function () {
+    done[box.dataset.done] = box.checked;
+    try { localStorage.setItem(KEY, JSON.stringify(done)); } catch (e) {}
+    refresh();
+  });
+});
+refresh();
+// 지금 읽는 구역을 목차에 표시
+var links = {};
+document.querySelectorAll("nav.toc a").forEach(function (a) { links[a.getAttribute("href").slice(1)] = a; });
+var observer = new IntersectionObserver(function (entries) {
+  entries.forEach(function (entry) {
+    if (entry.isIntersecting) {
+      Object.values(links).forEach(function (a) { a.classList.remove("active"); });
+      if (links[entry.target.id]) links[entry.target.id].classList.add("active");
+    }
+  });
+}, { rootMargin: "-10% 0px -75% 0px" });
+document.querySelectorAll("main section").forEach(function (s) { observer.observe(s); });
+</script>
+</body>
+</html>

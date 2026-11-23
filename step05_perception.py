@@ -1,5 +1,5 @@
 # 5단계: 작업 구역에 들어온 박스의 위치·자세를 읽어 집을 자세와 뒤집기 여부를 계산한다
-"""실행: C:\\isaacsim-6.2\\python.bat step05_perception.py --seed 3"""
+"""실행: C:\\isaacsim-6.2\\python.bat step05_perception.py --seed 5"""
 
 from palletizing.boot import finish, start_app, wait_for_assets
 
