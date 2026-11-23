@@ -26,27 +26,12 @@ from palletizing.spawner import BinSpawner
 OUT = ROOT / "docs" / "img"
 OUT.mkdir(exist_ok=True)
 OVERVIEW = dict(eye=[3.0, 3.0, 1.5], target=[0.35, 0.2, -0.4])
-CLOSE = dict(eye=[1.9, 2.1, 0.5], target=[0.3, 0.5, -0.45])
 
 
-def shot(name: str, view: dict = OVERVIEW) -> None:
-    """카메라를 맞추고 렌더가 가라앉기를 기다렸다가 저장한다. 시뮬레이션은 멈춰 둔다."""
-    was_playing = app_utils.is_playing()
-    if was_playing:
-        app_utils.pause()
-    ViewportManager.set_camera_view("/OmniverseKit_Persp", **view)
-    for _ in range(40):
-        app.update()
-    png = OUT / f"{name}.png"
-    capture_viewport_to_file(get_active_viewport(), str(png))
-    for _ in range(10):
-        app.update()
-    Image.open(png).convert("RGB").save(OUT / f"{name}.jpg", quality=85)
-    png.unlink()
-    print(f"<저장 {name}.jpg>", flush=True)
-    if was_playing:
-        app_utils.play()
-        app.update()
+def shot(name: str) -> None:
+    """뷰포트 저장을 요청만 하고 바로 돌아간다. 시뮬레이션을 멈추거나 건너뛰면 동작이 흐트러지기 때문이다."""
+    capture_viewport_to_file(get_active_viewport(), str(OUT / f"{name}.png"))
+    print(f"<촬영 {name}>", flush=True)
 
 
 urls = build_scene()
@@ -64,7 +49,8 @@ for _ in range(10):
     app.update()
 robot.start()
 cell.reset()
-for _ in range(60):
+ViewportManager.set_camera_view("/OmniverseKit_Persp", **OVERVIEW)
+for _ in range(90):
     app.update()
     robot.step(SimulationManager.get_physics_dt())
 shot("scene")
@@ -87,10 +73,10 @@ while app.is_running() and controller.state != "done" and frame < 2400 * 4:
     attached_frames = attached_frames + 1 if obs.bin_attached else 0
     if "bin_arrived" not in taken and state == "picking":
         taken.add("bin_arrived")
-        shot("bin_arrived", CLOSE)
+        shot("bin_arrived")
     if "attached" not in taken and attached_frames == 25:
         taken.add("attached")
-        shot("attached", CLOSE)
+        shot("attached")
     if "flipping" not in taken and previous_state == "flipping" and state == "picking":
         taken.add("flipping")
         shot("flipped")
@@ -99,8 +85,11 @@ while app.is_running() and controller.state != "done" and frame < 2400 * 4:
         shot("placing")
     previous_state = state
 
-for _ in range(60):
-    app.update()
 shot("stacked")
+for _ in range(120):  # 마지막 파일이 써질 시간
+    app.update()
+for png in OUT.glob("*.png"):
+    Image.open(png).convert("RGB").save(png.with_suffix(".jpg"), quality=85)
+    png.unlink()
 print(f"<끝: 상태 {controller.state}, 쌓은 박스 {len(cell.stacked)}>", flush=True)
 app.close()

@@ -13,6 +13,7 @@ from palletizing.common import make_T, quat_to_matrix, read_world_pose, rigid_po
 # 작업 구역: 컨베이어 끝부분. 이 안에 들어온 박스만 집는다.
 WORK_ZONE_Y = (0.0, 0.7)
 WORK_ZONE_X = (-0.4, 0.4)
+_GRASP_Y_REFERENCE = np.array([-0.15, 1.0, 0.0])  # 집는 자세의 y축이 향했으면 하는 쪽
 
 
 @dataclass
@@ -59,7 +60,9 @@ def estimate_grasp(bin_state: BinState, up_vec=(0.0, 0.0, 1.0)) -> None:
         approach = bin_z  # 위로 드러난 바깥 바닥을 집는다
         margin = -0.0025
 
-    # 집는 자세의 y축은 박스 x축에 맞춘다. 두 방향 중 월드 +Y 쪽을 골라 손목이 덜 꼬이게 한다.
-    grasp_y = -bin_x if bin_x[1] < 0.0 else bin_x
+    # 집는 자세의 y축은 박스 x축에 맞춘다. 박스는 180도 돌려도 같으므로 +bin_x, -bin_x 둘 다 답이다.
+    # 그중 월드 +Y 쪽을 골라 손목이 덜 꼬이게 한다. 기준을 -X 쪽으로 조금 기울여 둔 것은,
+    # 컨베이어 끝에 반듯하게 걸린 박스(bin_x가 월드 X와 나란함)에서 부호가 잡음으로 뒤집히지 않게 하려는 것이다.
+    grasp_y = bin_x if np.dot(bin_x, _GRASP_Y_REFERENCE) > 0.0 else -bin_x
     grasp_z = np.cross(approach, grasp_y)
     bin_state.grasp_T = make_T(base_p + margin * bin_z, np.column_stack([approach, grasp_y, grasp_z]))

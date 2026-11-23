@@ -149,8 +149,8 @@ footer{color:var(--ink-3);font-size:13.5px;padding:0 10px}
   <h2>전체 그림</h2>
   <p class="goal">무엇을 만들고, 조각들이 어떻게 맞물리는지 먼저 본다.</p>
 
-  <figure class="img"><img class="shot" src="img/stacked.jpg" alt="완성된 셀. 컨베이어, UR10, 뒤집기 장치, 박스가 쌓인 팔레트" width="1280" height="720" loading="lazy">
-    <figcaption>이 가이드의 9단계 코드를 실행한 화면. 왼쪽 컨베이어로 박스가 오고, 로봇이 오른쪽 팔레트에 쌓는다.</figcaption></figure>
+  <figure class="img"><img class="shot" src="img/stacked.jpg" alt="완성된 셀. 오른쪽 컨베이어, 가운데 UR10과 뒤집기 장치, 왼쪽에 박스 네 개가 쌓인 팔레트" width="1280" height="720" loading="lazy">
+    <figcaption>이 가이드의 9단계 코드를 실행한 화면. 오른쪽 컨베이어로 박스가 오고, 로봇이 왼쪽 팔레트에 쌓는다. 가운데 흰 틀이 뒤집기 장치다.</figcaption></figure>
 
   <h3>셀 배치 (위에서 본 모습)</h3>
   <p>로봇 베이스가 원점이다. 단위는 m. 박스는 <code>+Y</code> 쪽 입구에서 떨어져 <code>-Y</code> 방향으로 흘러온다. 바닥은 <code>z = -1.18</code>, 로봇은 받침대 위 <code>z = 0</code>에 서 있다.</p>
@@ -422,6 +422,7 @@ dolly         x[+0.46,+1.31] y[-0.96,+0.30] z[-1.18,-0.74]
   <ul>
     <li><b>바닥판을 읽는다.</b> 박스 안의 <code>Collision/Cube_03</code>이 바닥판이다. 흡착컵이 붙을 평평한 면이라서 박스 중심이 아니라 이 prim의 포즈를 읽는다.</li>
     <li><b>뒤집기 판정.</b> 박스 z축(바닥 → 입구)이 위를 향하면 입구가 위다. 이 박스는 엎어서 쌓아야 하므로 "뒤집기 필요"다. 식으로는 <code>dot(위쪽, 박스 z축) &gt; 0</code> 한 줄이다.</li>
+    <li><b>180도 대칭.</b> 박스는 반 바퀴 돌려도 같은 모양이라 집는 방향이 둘이다. 손목이 덜 돌아가는 쪽을 고르는 기준 방향(<code>_GRASP_Y_REFERENCE</code>)을 둔다. 이 값이 왜 살짝 기울어 있는지는 9단계에서 겪는다.</li>
     <li><b>집을 자세 <code>grasp_T</code>.</b> 4x4 행렬이고 x축이 흡착컵이 다가가는 방향이다. 두 경우 모두 위에서 아래로 내려간다. 입구가 위면 박스 안으로 들어가 안쪽 바닥을, 엎어져 있으면 드러난 바깥 바닥을 집는다.</li>
   </ul>
   <figure>
@@ -503,7 +504,7 @@ dolly         x[+0.46,+1.31] y[-0.96,+0.30] z[-1.18,-0.74]
 [step06] PASS</pre>
   <div class="note warn"><b>직접 겪은 함정.</b> 흡착을 껐는데 박스가 공중에 그대로 떠 있었다(<code>z=0.386</code>). 가만히 매달려 있던 강체를 물리 엔진이 "잠재워" 두었고, 조인트가 풀려도 스스로 깨어나지 않았기 때문이다. 속도를 아주 조금 주어 깨우자 떨어졌다. 전체 작업에서는 박스를 놓는 순간 팔레트에 닿아 있거나 로봇이 움직이는 중이라 이 문제가 드러나지 않는다.</div>
   <figure class="img"><img class="shot" src="img/attached.jpg" alt="흡착컵에 붙어 들려 올라가는 박스" width="1280" height="720" loading="lazy">
-    <figcaption>흡착컵에 붙은 박스 (완성본 실행 중 화면).</figcaption></figure>
+    <figcaption>흡착컵에 붙어 들린 박스 (완성본 실행 중 화면).</figcaption></figure>
 
   <label class="check"><input type="checkbox" data-done="s6"><span>박스가 붙고, 따라오고, 떨어진다</span></label>
 </section>
@@ -653,11 +654,11 @@ dolly         x[+0.46,+1.31] y[-0.96,+0.30] z[-1.18,-0.74]
     </g>
     <g font-size="11.5" fill="#b4bfd3">
       <text x="126" y="96">박스 도착</text>
-      <text x="296" y="84">뒤집기 필요</text>
-      <text x="232" y="34">뒤집기 끝 → 다시 집기</text>
-      <text x="296" y="146">바로 쌓기</text>
+      <text x="326" y="92">뒤집기 필요</text>
+      <text x="150" y="24">뒤집기 끝 → 다시 집기</text>
+      <text x="262" y="150">바로 쌓기</text>
       <text x="466" y="158">마지막</text>
-      <text x="170" y="214">다음 박스로</text>
+      <text x="110" y="176">다음 박스로</text>
     </g>
   </svg>
   </figure>
@@ -699,7 +700,11 @@ dolly         x[+0.46,+1.31] y[-0.96,+0.30] z[-1.18,-0.74]
   </div>
   <p>그다음 옵션 없이 실행하면 9개를 모두 쌓고 <code>done</code>에서 멈춘다.</p>
 <pre class="cmd">C:\isaacsim-6.2\python.bat step09_palletizing.py</pre>
-<!--FULLRUN-->
+<pre class="out">&lt;쌓은 박스 9/9, 거친 상태 ['done', 'flipping', 'idle', 'picking', 'placing'], 114초&gt;
+[step09] PASS</pre>
+  <p>위는 <code>--seed 1 --test --headless</code>로 돌린 결과다. 시뮬레이션 시간으로 114초, 그중 세 개는 뒤집기를 거쳤다.</p>
+  <div class="note warn"><b>직접 겪은 함정.</b> 처음에는 9개 중 2번째 박스에서 로봇이 멈췄다. 뒤집는 동안 다음 박스가 컨베이어 끝까지 가서 벽에 반듯하게 걸렸고, 이때 박스 x축이 월드 X축과 나란해져 "+Y 쪽을 고른다"는 판정의 부호가 잡음 수준(y 성분 0.0006)으로 갈렸다. 반대쪽이 뽑히면 손목이 180도 돌아간 채 집고, 놓으러 가다가 관절 한계에 걸린다. 공식 예제의 판정식(<code>bin_ax[1] &lt; 0</code>)도 같은 경계를 가진다. 이 가이드의 <code>perception.py</code>는 기준 방향을 살짝 기울여(<code>_GRASP_Y_REFERENCE</code>) 이 경우에 항상 같은 쪽이 뽑히게 했다.</div>
+  <div class="note"><b>일시정지 주의.</b> 동작 도중에 시뮬레이션을 멈췄다 다시 재생하면 박스를 놓치는 경우가 있었다. 처음부터 다시 볼 때는 스크립트를 다시 실행한다.</div>
 
   <label class="check"><input type="checkbox" data-done="s9"><span>뒤집기를 포함해 팔레트에 쌓이는 것을 봤다</span></label>
 </section>

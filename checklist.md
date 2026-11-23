@@ -18,10 +18,10 @@
 - [x] step07 로봇 모션 (`motion.py`)
 - [x] step08 한 사이클 집기·놓기 (`tasks.py`, `cell.py`)
 - [x] step09 상태기계·뒤집기 (`fsm.py`) — `--seed 5 --max-bins 2`, `--seed 3 --max-bins 4` PASS
-- [ ] step09 전체 9개 적재 (`--seed 1`) 실행 중
+- [x] step09 전체 9개 적재 (`--seed 1`) PASS — 첫 시도 실패(집는 방향 부호 경계) 후 `perception.py` 수정
 
 ## 가이드
 - [x] `docs/build_guide.py` (실제 소스를 가이드에 끼워 넣는 빌드)
-- [ ] `docs/guide.html` 글래스모피즘·다크·Pretendard
-- [ ] 렌더링 화면 캡처 확인 (대비·잘림·포커스)
-- [ ] README (실행 명령), 커밋
+- [x] `docs/guide.html` 글래스모피즘·다크·Pretendard
+- [x] 렌더링 화면 캡처 확인 (데스크톱 1360px, 좁은 폭 520px. 키보드 포커스 표시는 CSS만 넣고 눈으로는 미확인)
+- [x] README (실행 명령), 커밋

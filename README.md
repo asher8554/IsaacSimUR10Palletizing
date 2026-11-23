@@ -36,7 +36,7 @@ C:\isaacsim-6.2\python.bat step09_palletizing.py --test --headless --seed 5 --ma
 
 ## 검증
 
-2026-11-23, Isaac Sim 6.2.0-rc.14 · Windows 11 · RTX 3070에서 step01~09를 `--test --headless`로 실행해 모두 PASS를 확인했다. 9단계는 뒤집기가 포함된 순서(`--seed 5 --max-bins 2`)와 전체 9개 적재(`--seed 1`)를 각각 확인했다.
+2026-11-23, Isaac Sim 6.2.0-rc.14 · Windows 11 · RTX 3070에서 step01~09를 `--test --headless`로 실행해 모두 PASS를 확인했다. 9단계는 뒤집기가 포함된 순서(`--seed 5 --max-bins 4`)와 전체 9개 적재(`--seed 1`, 뒤집기 3회 포함, 시뮬레이션 114초)를 각각 확인했다. 다른 시드는 돌려 보지 않았다.
 
 ## 가이드 다시 만들기
 
